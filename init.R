@@ -23,8 +23,13 @@ createDatabase <- function() {
   files <- length(list.files(paste0(getwd(),'/data', collapse = ''), full.names=TRUE))
   df <- data.frame()
   for (i in 1:files) {
-    channel <- odbcConnectExcel(paste0(getwd(),'/data/1.xls', collapse = ''))
-    sqlTables(channel)
+    print(paste0('processing ',i,'.xls...'))
+    channel <- odbcConnectExcel(paste0(getwd(),'/data/',i,'.xls', collapse = ''))
+    catch <- try(sqlTables(channel))
+    if (inherits(catch, 'try-error')) {
+      print(paste0('error in ',i,'.xls. Skipping to next'))
+      next
+    }
     sh1 <- sqlFetch(channel, "Page 1")
     df <- rbind(data.frame(sh1), df)
     odbcClose(channel)
