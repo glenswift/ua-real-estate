@@ -123,7 +123,7 @@ getCoords <- function(data) {
     posY <- xpathSApply(dom, "//input[@id='geo_y']", xmlGetAttr, "value")
     #print(class(posX))
     if (is.list(posX) || is.list(posY)) {
-      print('++ No result. Sending data to Yandex')
+      print('++No result. Sending data to Yandex')
       posX <- getYaCoord(data[i, ])[1]
       posY <- getYaCoord(data[i, ])[2]
     }
@@ -182,10 +182,9 @@ getYaCoord <- function(row) {
     posX <- NA
     posY <- NA
     print(paste0('error in ',i,'Object. Coordinates setted to NA. Skipping to next'))
-    next
+    return(c(NA, NA))
   }
-  if (kind == 'metro' || kind == 'street') {
-    print('++++Bad address notation. Adding randomization')
+  if (kind == 'street') {
     posX = posX + rnorm(1, 0.005462, 0.01)
     posY = posY + rnorm(1, 0.005462, 0.01)
   }
