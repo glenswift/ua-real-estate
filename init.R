@@ -112,11 +112,10 @@ createDatabase <- function() {
 #}
 
 getCoords <- function(data) {
-  cX <- numeric()
-  cY <- numeric()
   baseUrl <- 'http://dom.ria.ua/ru/realty-'
   cookie <- 'Real Estate Data Parsing'
   for (i in 1:length(data$Realty.ID)) {
+    print(paste0('Processing ', data$Realty.ID[i]))
     url <- paste0(baseUrl, data$Realty.ID[i], '.html')
     html <- getURL(url, cookie=cookie)
     dom <- htmlParse(html)
@@ -124,45 +123,45 @@ getCoords <- function(data) {
     posY <- xpathSApply(dom, "//input[@id='geo_y']", xmlGetAttr, "value")
     #print(class(posX))
     if (is.list(posX) || is.list(posY)) {
-      print('No result. Sending data to Yandex')
+      print('++ No result. Sending data to Yandex')
       posX <- getYaCoord(data[i, ])[1]
       posY <- getYaCoord(data[i, ])[2]
-      print(i)
     }
-    print(paste(data$Realty.ID[i], posX, posY))
+    data$posX[i] <- as.numeric(posX)
+    data$posY[i] <- as.numeric(posY)
   }
+  return(data)
 }
 
 getYaCoord <- function(row) {
-  #print(row)
   baseUrl <- 'http://geocode-maps.yandex.ru/1.x/?geocode='
   afterUrl <- 'results=1'
   cookie <- 'Real Estate Data Parsing'
   country <- 'Óêğàèíà'
-  department <- paste0(row['Îáëàñòü'], '+îáëàñòü')
-  city <- row['Ãîğîä']
-  if (is.na(row['Ğàéîí']) && is.na(row['Óëèöà'])) {
+  department <- paste0(row$Îáëàñòü[1], '+îáëàñòü')
+  city <- row$Ãîğîä[1]
+  if (is.na(row$Ğàéîí[1]) && is.na(row$Óëèöà[1])) {
     #replace NA data with empty strings
     region = address = ''
   } else {
     #ok, we have one actual address parameter. Let's get address
-    if (!is.na(row['Ğàéîí'])) {
-      region <- paste0('ğàéîí+', row['Ğàéîí'])
+    if (!is.na(row$Ğàéîí[1])) {
+      region <- paste0('ğàéîí+', row$Ğàéîí[1])
     } else {
       region <- ''
     }
-    if (!is.na(row['Óëèöà'])) {
+    if (!is.na(row$Óëèöà[1])) {
       #if address didn't set like underground station name
-      if (!row['Óëèöà'] %in% metro.kiev) {
+      if (!row$Óëèöà[1] %in% metro.kiev) {
         #delete banned words from address field
         address <- paste0('óëèöà+', 
                           sub("(Óëèöà|Óë.|óëèöà|óë.|óë)", "",
-                              row['Óëèöà'])
+                              row$Óëèöà[1])
         )
         afterUrl <- paste0(afterUrl, '&kind=house')
       } else {
         #if address set like underground station name
-        address <- paste0('ìåòğî+', row['Óëèöà'])
+        address <- paste0('ìåòğî+', row$Óëèöà[1])
         afterUrl <- paste0(afterUrl, '&kind=metro')
       }
     } else {
@@ -185,9 +184,14 @@ getYaCoord <- function(row) {
     print(paste0('error in ',i,'Object. Coordinates setted to NA. Skipping to next'))
     next
   }
+  if (kind == 'metro' || kind == 'street') {
+    print('++++Bad address notation. Adding randomization')
+    posX = posX + rnorm(1, 0.005462, 0.01)
+    posY = posY + rnorm(1, 0.005462, 0.01)
+  }
   #print(paste0('processing ', i, ' object'))
-  #print(url)
-  print(posX)
+  #print(kind)
+  #print(posX)
   #setting variables to default value
   #afterUrl <- 'results=1'
   return(c(posX, posY))
