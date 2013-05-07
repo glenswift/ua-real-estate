@@ -115,7 +115,7 @@ getCoords <- function(data) {
   baseUrl <- 'http://dom.ria.ua/ru/realty-'
   cookie <- 'Real Estate Data Parsing'
   for (i in 1:length(data$Realty.ID)) {
-    print(paste0('Processing ', data$Realty.ID[i]))
+    print(paste0('Processing ', data$Realty.ID[i], ' - ', i, ' from ', length(data$Realty.ID)))
     url <- paste0(baseUrl, data$Realty.ID[i], '.html')
     html <- getURL(url, cookie=cookie)
     dom <- htmlParse(html)
