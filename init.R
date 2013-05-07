@@ -129,6 +129,9 @@ getCoords <- function(data) {
     }
     data$posX[i] <- as.numeric(posX)
     data$posY[i] <- as.numeric(posY)
+    if (i %% 1000 == 0) {
+      write.csv(data, '/csvdata/database.csv', row.names=FALSE)
+    }
   }
   return(data)
 }
