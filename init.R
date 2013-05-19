@@ -46,95 +46,24 @@ createDatabase <- function() {
   write.csv(df, file=paste0(getwd(),'/csvdata/database.csv'), row.names = FALSE)
 }
 
-#getYaCoords <- function(data) {
-#  cX <- numeric()
-#  cY <- numeric()
-#  baseUrl <- 'http://geocode-maps.yandex.ru/1.x/?geocode='
-#  afterUrl <- 'results=1'
-#  cookie <- 'Real Estate Data Parsing'
-#  #for every row in dataframe
-#  for (i in 1:length(data$Realty.ID)) {
-#    country <- 'Óêğàèíà'
-#    department <- paste0(data[i, 'Îáëàñòü'], '+îáëàñòü')
-#    city <- data[i, 'Ãîğîä']
-#    if (is.na(data[i, 'Ğàéîí']) && is.na(data[i, 'Óëèöà'])) {
-#      #replace NA data with empty strings
-#      region = address = ''
-#    } else {
-#      #ok, we have one actual address parameter. Let's get address
-#      if (!is.na(data[i, 'Ğàéîí'])) {
-#        region <- paste0('ğàéîí+', data[i, 'Ğàéîí'])
-#      } else {
-#        region <- ''
-#      }
-#      if (!is.na(data[i, 'Óëèöà'])) {
-#        #if address didn't set like underground station name
-#        if (!data[i, 'Óëèöà'] %in% metro.kiev) {
-#          #delete banned words from address field
-#          address <- paste0('óëèöà+', 
-#                            sub("(Óëèöà|Óë.|óëèöà|óë.|óë)", "",
-#                                data[i, 'Óëèöà'])
-#          )
-#          afterUrl <- paste0(afterUrl, '&kind=house')
-#        } else {
-#          #if address set like underground station name
-#          address <- paste0('ìåòğî+', data[i, 'Óëèöà'])
-#          afterUrl <- paste0(afterUrl, '&kind=metro')
-#        }
-#      } else {
-#        address <- ''
-#      }
-#    }
-#    url <- paste(paste(baseUrl, country, department, city, region, address, sep = "+"), afterUrl, sep = '&')
-#    html <- getURL(url, cookie=cookie)
-#    dom <- htmlParse(html)
-#    print <- dom
-#    point <- xpathSApply(dom, "//pos", xmlValue)
-#    kind <- xpathSApply(dom, "//kind", xmlValue)
-#    #print(point)
-#    catch <- try({
-#      cX[i] <- as.numeric(substr(point, 0, 9))
-#      cY[i] <- as.numeric(substr(point, 11, 20))
-#      })
-#    if (inherits(catch, 'try-error')) {
-#      cX[i] <- NA
-#      cY[i] <- NA
-#      print(paste0('error in ',i,'Object. Coordinates setted to NA. Skipping to next'))
-#      next
-#    }
-#    print(paste0('processing ', i, ' object'))
-#    #print(url)
-#    print(kind)
-#    #setting variables to default value
-#    afterUrl <- 'results=1'
-#  }
-#  plot(cX, cY)
-#}
-
-getCoords <- function(data) {
+getRiaCoords <- function(row) {
   baseUrl <- 'http://dom.ria.ua/ru/realty-'
-  cookie <- 'Real Estate Data Parsing'
-  for (i in 1:length(data$Realty.ID)) {
-    print(paste0('Processing ', data$Realty.ID[i], ' - ', i, ' from ', length(data$Realty.ID)))
-    url <- paste0(baseUrl, data$Realty.ID[i], '.html')
-    html <- getURL(url, cookie=cookie)
+  cookie <- 'Real Estate row Parsing'
+  #print(paste0('Processing ', row$Realty.ID[1], ' - ', i, ' from ', length(row$Realty.ID)))
+  url <- paste0(baseUrl, row$Realty.ID[1], '.html')
+  html <- getURL(url, cookie=cookie)
+  catch <- try({
     dom <- htmlParse(html)
-    posX <- xpathSApply(dom, "//input[@id='geo_x']", xmlGetAttr, "value")
-    posY <- xpathSApply(dom, "//input[@id='geo_y']", xmlGetAttr, "value")
-    #print(class(posX))
-    if (is.list(posX) || is.list(posY)) {
-      print('++No result. Sending data to Yandex')
-      posX <- getYaCoord(data[i, ])[1]
-      posY <- getYaCoord(data[i, ])[2]
-    }
-    data$posX[i] <- as.numeric(posX)
-    data$posY[i] <- as.numeric(posY)
-    if (i %% 1000 == 0) {
-      print('Saving changes..')
-      write.csv(data, paste0(getwd(),'/csvdata/database.csv'), row.names=FALSE)
-    }
+  })
+  if (inherits(catch, 'try-error')) {
+    posX <- NA
+    posY <- NA
+    print('++Unexpected error, skipping to next')
+    return (c(NA, NA))
   }
-  return(data)
+  posX <- xpathSApply(dom, "//input[@id='geo_x']", xmlGetAttr, "value")
+  posY <- xpathSApply(dom, "//input[@id='geo_y']", xmlGetAttr, "value")
+  return (c(posX, posY))
 }
 
 getYaCoord <- function(row) {
@@ -181,7 +110,7 @@ getYaCoord <- function(row) {
   catch <- try({
     posX <- as.numeric(substr(point, 0, 9))
     posY <- as.numeric(substr(point, 11, 20))
-    })
+  })
   if (inherits(catch, 'try-error')) {
     posX <- NA
     posY <- NA
@@ -192,13 +121,39 @@ getYaCoord <- function(row) {
     posX = posX + rnorm(1, 0.005462, 0.01)
     posY = posY + rnorm(1, 0.005462, 0.01)
   }
-  #print(paste0('processing ', i, ' object'))
-  #print(kind)
-  #print(posX)
-  #setting variables to default value
-  #afterUrl <- 'results=1'
   return(c(posX, posY))
 }
+
+getCoords <- function(data, start = 1001) {
+  for (i in start:length(data$Realty.ID)) {
+    connection <- try ({
+      print(paste0('Processing ', data$Realty.ID[i], ' - ', i, ' from ', length(data$Realty.ID)))
+      coordsRia <- getRiaCoords(data[i, ])
+      posX <- coordsRia[1]
+      posY <- coordsRia[2]
+      if (is.list(coordsRia)) {
+        print('++No result. Sending data to Yandex')
+        coordsYa <- getYaCoord(data[i, ])
+        posX <- coordsYa[1]
+        posY <- coordsYa[2]
+      }
+      data$posX[i] <- as.numeric(posX)
+      data$posY[i] <- as.numeric(posY)
+      if (i %% 1000 == 0) {
+        print('Saving changes..')
+        write.csv(data, paste0(getwd(),'/csvdata/database.csv'), row.names=FALSE)
+      }
+    })
+    if (inherits(connection, 'try-error')) {
+      print('++Error in connection. Waiting for 10 seconds')
+      Sys.sleep(10)
+      return (getCoords(data, i))
+    }
+  }
+  return(data)
+}
+
+
 
 getData <- function(city) {
   #import data from database.csv
